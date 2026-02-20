@@ -14,6 +14,7 @@ export interface LeadFollowupTask {
   category?: FollowupCategory | null;
   category_confidence?: number | null;
   category_source?: FollowupCategorySource | null;
+  thread_id?: string | null;
   created_at: string;
 }
 

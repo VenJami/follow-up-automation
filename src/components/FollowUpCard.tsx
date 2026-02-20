@@ -92,6 +92,17 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
   }, [showMoveTo]);
 
   function openGmailCompose() {
+    // If we have a thread_id, link directly to the Gmail thread
+    if (followup.thread_id) {
+      // Gmail thread URL format: https://mail.google.com/mail/u/0/#inbox/{threadId}
+      const threadUrl = `https://mail.google.com/mail/u/0/#inbox/${followup.thread_id}`;
+      if (typeof window !== "undefined") {
+        window.open(threadUrl, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
+    // Fallback: Open new compose window if no thread_id
     const to = followup.lead_email;
     const subject = followup.reason
       ? `Re: ${followup.reason}`
@@ -134,8 +145,24 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
     }
   }
 
-  function handleApprove() {
-    // Open Gmail compose with the current draft, but do not auto-send.
+  async function handleApprove() {
+    // Copy the suggested reply to clipboard
+    const replyText = replyDraft || followup.ai_suggested_message || "";
+    try {
+      await navigator.clipboard.writeText(replyText);
+      // Show a brief visual feedback (you could enhance this with a toast library later)
+      const button = document.activeElement as HTMLElement;
+      const originalText = button.textContent;
+      button.textContent = "Copied! Opening Gmail...";
+      setTimeout(() => {
+        if (button) button.textContent = originalText;
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy to clipboard:", err);
+    }
+
+    // Open Gmail thread (if thread_id exists) or compose window
+    // The suggested reply is already copied to clipboard, so user can paste it into the thread
     openGmailCompose();
 
     // Mark the task as approved in the background.
@@ -346,6 +373,7 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
               type="button"
               onClick={handleApprove}
               disabled={disabled}
+              data-approve-id={followup.id}
               className="min-w-[90px] rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60 transition-transform active:scale-95 disabled:active:scale-100"
             >
               Approve &amp; Open Gmail
