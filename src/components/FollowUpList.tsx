@@ -15,8 +15,17 @@ export function FollowUpList({ followups, category, userEmail }: FollowUpListPro
 
   return (
     <section className="space-y-3">
-      {followups.map((followup) => (
-        <FollowUpCard key={followup.id} followup={followup} userEmail={userEmail} />
+      {followups.map((followup, index) => (
+        <div
+          key={followup.id}
+          className="animate-in fade-in slide-in-from-bottom-2"
+          style={{
+            animationDelay: `${index * 50}ms`,
+            animationFillMode: "both",
+          }}
+        >
+          <FollowUpCard followup={followup} userEmail={userEmail} />
+        </div>
       ))}
     </section>
   );

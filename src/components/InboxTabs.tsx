@@ -43,13 +43,13 @@ export function InboxTabs({
               type="button"
               onClick={() => onTabChange(tab)}
               className={`
-                relative flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors transition-transform active:scale-95
+                relative flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-all duration-200 active:scale-95
                 ${
                   isActive
                     ? isUrgent
-                      ? "border-amber-500 text-amber-700"
-                      : "border-sky-500 text-sky-600"
-                    : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                      ? "border-amber-500 text-amber-700 bg-amber-50/50"
+                      : "border-sky-500 text-sky-600 bg-sky-50/50"
+                    : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900 hover:bg-slate-50/50"
                 }
               `}
             >

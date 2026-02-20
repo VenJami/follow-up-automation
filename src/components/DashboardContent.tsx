@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useTransition, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { LeadFollowupTask, FollowupCategory } from "@/types/followup";
 import { InboxTabs } from "./InboxTabs";
 import { Header } from "./Header";
@@ -15,7 +15,19 @@ interface DashboardContentProps {
 export function DashboardContent({ followups, userEmail }: DashboardContentProps) {
   const [activeTab, setActiveTab] = useState<FollowupCategory>("urgent");
   const [isRefreshing, startRefreshTransition] = useTransition();
+  const [showWelcome, setShowWelcome] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Show welcome animation if coming from auth callback
+  useEffect(() => {
+    const fromAuth = searchParams.get("welcome");
+    if (fromAuth === "true") {
+      setShowWelcome(true);
+      const timer = setTimeout(() => setShowWelcome(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   function handleRefresh() {
     startRefreshTransition(() => {
@@ -53,6 +65,39 @@ export function DashboardContent({ followups, userEmail }: DashboardContentProps
 
   return (
     <main className="min-h-screen px-4 py-6">
+      {/* Welcome animation */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm animate-in fade-in">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-500">
+            <div className="text-center">
+              <div className="mb-4 flex justify-center">
+                <div className="rounded-full bg-gradient-to-br from-sky-500 to-blue-600 p-4">
+                  <svg
+                    className="h-8 w-8 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <h2 className="mb-2 text-2xl font-bold text-slate-900">
+                Welcome back!
+              </h2>
+              <p className="text-sm text-slate-600">
+                You're all set. Let's review your follow-ups.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mx-auto max-w-3xl">
         <div className="sticky top-0 z-20 -mx-4 mb-4 bg-slate-50/95 px-4 pb-4 backdrop-blur">
           <div className="flex flex-col gap-4">
@@ -99,11 +144,13 @@ export function DashboardContent({ followups, userEmail }: DashboardContentProps
             ))}
           </div>
         ) : (
-          <FollowUpList
-            followups={filteredFollowups}
-            category={activeTab}
-            userEmail={userEmail}
-          />
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <FollowUpList
+              followups={filteredFollowups}
+              category={activeTab}
+              userEmail={userEmail}
+            />
+          </div>
         )}
       </div>
     </main>

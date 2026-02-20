@@ -61,6 +61,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL("/dashboard", requestUrl.origin));
+  return NextResponse.redirect(new URL("/dashboard?welcome=true", requestUrl.origin));
 }
 
