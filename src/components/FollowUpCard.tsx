@@ -94,10 +94,35 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
   function openGmailCompose() {
     // If we have a thread_id, link directly to the Gmail thread
     if (followup.thread_id) {
-      // Gmail thread URL format: https://mail.google.com/mail/u/0/#inbox/{threadId}
-      const threadUrl = `https://mail.google.com/mail/u/0/#inbox/${followup.thread_id}`;
+      const threadId = followup.thread_id;
+      
+      // Log the thread_id format for debugging
+      console.log("Thread ID format:", threadId);
+      
+      // Gmail thread URLs - try using search which is more reliable
+      // Search for the thread ID (Gmail will find it if it's in the thread)
+      // Format: https://mail.google.com/mail/u/0/#search/{threadId}
+      const searchQuery = encodeURIComponent(threadId);
+      let threadUrl = `https://mail.google.com/mail/u/0/#search/${searchQuery}`;
+      
+      // Alternative: Try direct thread link if threadId looks like a Gmail thread ID
+      // Gmail thread IDs are usually numeric or alphanumeric without special chars
+      if (/^[a-zA-Z0-9]+$/.test(threadId)) {
+        // Try direct thread view format
+        threadUrl = `https://mail.google.com/mail/u/0/#all/${threadId}`;
+      }
+      
+      // Hint Gmail which account to use
+      const authUserParam = userEmail
+        ? `?authuser=${encodeURIComponent(userEmail)}`
+        : "";
+      
+      const finalUrl = threadUrl + authUserParam;
+      
+      console.log("Opening Gmail URL:", finalUrl);
+      
       if (typeof window !== "undefined") {
-        window.open(threadUrl, "_blank", "noopener,noreferrer");
+        window.open(finalUrl, "_blank", "noopener,noreferrer");
       }
       return;
     }
