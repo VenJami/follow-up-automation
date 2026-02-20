@@ -45,7 +45,16 @@ export default function LoginPage() {
 
     try {
       const supabase = createSupabaseBrowserClient();
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const originEnv =
+        typeof process !== "undefined"
+          ? process.env.NEXT_PUBLIC_SITE_URL
+          : undefined;
+      const origin =
+        originEnv && originEnv.length > 0
+          ? originEnv
+          : typeof window !== "undefined"
+          ? window.location.origin
+          : "";
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
