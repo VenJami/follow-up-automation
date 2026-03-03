@@ -16,5 +16,10 @@ export interface LeadFollowupTask {
   category_source?: FollowupCategorySource | null;
   thread_id?: string | null;
   created_at: string;
+  // Inbox enrichment fields (optional/nullable on older rows)
+  is_read?: boolean | null;
+  read_at?: string | null;
+  has_reply?: boolean | null;
+  last_reply_at?: string | null;
 }
 

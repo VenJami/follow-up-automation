@@ -64,3 +64,83 @@ export async function moveToCategory(
     console.error("Supabase error moving follow-up to category", error);
   }
 }
+
+export async function markFollowupRead(
+  id: string,
+  isRead: boolean
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const payload =
+    isRead === true
+      ? { is_read: true, read_at: new Date().toISOString() }
+      : { is_read: false, read_at: null };
+
+  const { error } = await supabase.from(TABLE_NAME).update(payload).eq("id", id);
+
+  if (error) {
+    console.error("Supabase error marking follow-up read/unread", error);
+  }
+}
+
+export async function bulkApproveFollowups(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .update({ status: "approved" })
+    .in("id", ids);
+
+  if (error) {
+    console.error("Supabase error bulk-approving follow-ups", error);
+  }
+}
+
+export async function bulkDismissFollowups(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .update({ status: "dismissed" })
+    .in("id", ids);
+
+  if (error) {
+    console.error("Supabase error bulk-dismissing follow-ups", error);
+  }
+}
+
+export async function bulkMoveToCategory(
+  ids: string[],
+  category: FollowupCategory
+): Promise<void> {
+  if (ids.length === 0) return;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .update({ category })
+    .in("id", ids);
+
+  if (error) {
+    console.error("Supabase error bulk-moving follow-ups to category", error);
+  }
+}
+
+export async function bulkMarkReadState(
+  ids: string[],
+  isRead: boolean
+): Promise<void> {
+  if (ids.length === 0) return;
+  const supabase = await createSupabaseServerClient();
+  const payload =
+    isRead === true
+      ? { is_read: true, read_at: new Date().toISOString() }
+      : { is_read: false, read_at: null };
+
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .update(payload)
+    .in("id", ids);
+
+  if (error) {
+    console.error("Supabase error bulk-updating read state", error);
+  }
+}

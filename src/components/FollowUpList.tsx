@@ -6,9 +6,17 @@ interface FollowUpListProps {
   followups: LeadFollowupTask[];
   category: FollowupCategory;
   userEmail?: string;
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
 }
 
-export function FollowUpList({ followups, category, userEmail }: FollowUpListProps) {
+export function FollowUpList({
+  followups,
+  category,
+  userEmail,
+  selectedIds = [],
+  onToggleSelect,
+}: FollowUpListProps) {
   if (!followups.length) {
     return <TabEmptyState category={category} />;
   }
@@ -24,7 +32,14 @@ export function FollowUpList({ followups, category, userEmail }: FollowUpListPro
             animationFillMode: "both",
           }}
         >
-          <FollowUpCard followup={followup} userEmail={userEmail} />
+          <FollowUpCard
+            followup={followup}
+            userEmail={userEmail}
+            selected={selectedIds.includes(followup.id)}
+            onToggleSelected={
+              onToggleSelect ? () => onToggleSelect(followup.id) : undefined
+            }
+          />
         </div>
       ))}
     </section>

@@ -10,11 +10,14 @@ import {
   approveFollowupAction,
   dismissFollowupAction,
   moveToCategoryAction,
+  markFollowupReadAction,
 } from "@/app/dashboard/actions";
 
 interface FollowUpCardProps {
   followup: LeadFollowupTask;
   userEmail?: string;
+  selected?: boolean;
+  onToggleSelected?: () => void;
 }
 
 const CATEGORIES: { value: FollowupCategory; label: string }[] = [
@@ -51,7 +54,12 @@ function formatShortDateTime(timestamp: string): string {
   });
 }
 
-export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
+export function FollowUpCard({
+  followup,
+  userEmail,
+  selected = false,
+  onToggleSelected,
+}: FollowUpCardProps) {
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [replyDraft, setReplyDraft] = useState(followup.ai_suggested_message);
@@ -65,6 +73,7 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
   const normalizedCategory: FollowupCategory =
     (followup.category ?? "lead") as FollowupCategory;
   const isUrgent = normalizedCategory === "urgent";
+  const isRead = Boolean(followup.is_read);
 
   const isLowConfidence =
     followup.category_confidence != null &&
@@ -92,6 +101,13 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showMoveTo]);
+
+  // Mark as read when expanded for the first time
+  useEffect(() => {
+    if (!isExpanded || isRead) return;
+    // Fire-and-forget; UI state is driven by refreshed data after revalidate
+    void markFollowupReadAction(followup.id, true);
+  }, [isExpanded, isRead, followup.id]);
 
   function openGmailCompose() {
     // If we have a thread_id, link directly to the Gmail thread
@@ -244,6 +260,7 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
       className={[
         "group relative overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-200",
         isUrgent ? "border-amber-200 shadow-amber-50/50" : "border-slate-200",
+        isRead ? "opacity-90" : "opacity-100",
         "hover:shadow-md hover:border-slate-300",
       ].join(" ")}
     >
@@ -257,6 +274,22 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
+              {onToggleSelected && (
+                <button
+                  type="button"
+                  onClick={onToggleSelected}
+                  className="flex h-4 w-4 items-center justify-center rounded border border-slate-300 bg-white text-[10px] text-slate-700 mr-1"
+                  aria-label={selected ? "Deselect follow-up" : "Select follow-up"}
+                >
+                  {selected ? "✓" : ""}
+                </button>
+              )}
+              {!isRead && (
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 shrink-0 rounded-full bg-sky-400 animate-pulse"
+                />
+              )}
               {isUrgent && (
                 <span
                   aria-hidden="true"
@@ -267,6 +300,7 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
                 className={[
                   "text-sm text-slate-900 truncate",
                   isUrgent ? "font-bold" : "font-semibold",
+                  !isRead ? "font-semibold" : "font-normal",
                 ].join(" ")}
               >
                 {leadLabel}
@@ -289,6 +323,11 @@ export function FollowUpCard({ followup, userEmail }: FollowUpCardProps) {
                   ? "Personal / Other"
                   : "Urgent"}
               </span>
+              {followup.has_reply && (
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                  Replied
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-600 line-clamp-2">
               {followup.reason}

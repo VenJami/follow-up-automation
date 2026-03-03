@@ -1,0 +1,42 @@
+## Project Intelligence — Follow-Up Inbox
+
+### Always do first
+- Read **all** Memory Bank files in `memory-bank/` before starting work:
+  - `projectbrief.md`
+  - `productContext.md`
+  - `systemPatterns.md`
+  - `techContext.md`
+  - `activeContext.md`
+  - `progress.md`
+
+### Repo patterns to preserve
+- **Auth + allowlist** must be enforced on any privileged server code:
+  - Use `getUserOrRedirect()` (`src/lib/auth.ts`) in:
+    - protected pages (e.g. `/dashboard`)
+    - all server actions (mutations)
+- **Supabase client split**:
+  - Browser: `createSupabaseBrowserClient()` (`src/lib/supabaseClient.ts`)
+  - Server: `createSupabaseServerClient()` (`src/lib/supabaseServer.ts`)
+- **Cookie writes**:
+  - Only safe in **Route Handlers** and **Server Actions**.
+  - Server components must avoid cookie writes (this repo intentionally NO-OPs them).
+- **Mutations**:
+  - Use server actions in `src/app/dashboard/actions.ts`
+  - Call `revalidatePath("/dashboard")` after DB updates
+
+### Data model assumptions
+- Allowlist table: `allowed_users(email)`
+- Tasks table: `lead_followup_tasks` with statuses `pending|approved|dismissed` and categories `urgent|lead|invoice|personal`
+- UI normalizes `category = null` → `"lead"` for display/tab grouping
+
+### Environment variables
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Optional: `NEXT_PUBLIC_SITE_URL` (OAuth redirect origin)
+
+### Common commands
+- `npm install`
+- `npm run dev`
+- `npm run build`
+- `npm run lint`
+
