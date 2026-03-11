@@ -189,22 +189,29 @@ export function FollowUpCard({
   }
 
   function openReplyInGmail() {
+    if (typeof window === "undefined") return;
+
     // Prefer opening the exact thread when we have a thread_id
     if (followup.thread_id) {
       const threadId = followup.thread_id;
-      // Direct thread URL; mobile browsers and the Gmail app handle this well.
-      let threadUrl = `https://mail.google.com/mail/#all/${encodeURIComponent(threadId)}`;
 
-      // Hint Gmail which account to use if we know the signed-in email.
-      const authUserParam = userEmail
-        ? `?authuser=${encodeURIComponent(userEmail)}`
-        : "";
+      // 1) Try Gmail app deep link first (mobile-friendly).
+      const appLink = `googlegmail:///co?threadId=${encodeURIComponent(threadId)}`;
 
-      const finalUrl = threadUrl + authUserParam;
+      // 2) Fallback to Gmail web thread view.
+      const webLink = `https://mail.google.com/mail/?authuser=0#inbox/${encodeURIComponent(
+        threadId
+      )}`;
 
-      if (typeof window !== "undefined") {
-        window.location.href = finalUrl;
-      }
+      // Attempt to open the app; if it fails (no app installed), browser should
+      // stay alive and we then redirect to the web URL after a short delay.
+      window.location.href = appLink;
+
+      window.setTimeout(() => {
+        // Only fallback if we're still in the browser context.
+        window.location.href = webLink;
+      }, 800);
+
       return;
     }
 
@@ -223,9 +230,7 @@ export function FollowUpCard({
 
     const url = base + authUserParam;
 
-    if (typeof window !== "undefined") {
-      window.location.href = url;
-    }
+    window.location.href = url;
   }
 
   async function handleCopyReply() {
