@@ -23,3 +23,13 @@ export interface LeadFollowupTask {
   last_reply_at?: string | null;
 }
 
+// Thread message structure (for displaying email thread history)
+export interface ThreadMessage {
+  id: string;
+  from: string;
+  to: string;
+  subject: string;
+  body: string;
+  date: string;
+  isFromMe?: boolean;
+}
