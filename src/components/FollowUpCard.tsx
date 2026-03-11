@@ -188,6 +188,46 @@ export function FollowUpCard({
     }
   }
 
+  function openReplyInGmail() {
+    // Prefer opening the exact thread when we have a thread_id
+    if (followup.thread_id) {
+      const threadId = followup.thread_id;
+      // Direct thread URL; mobile browsers and the Gmail app handle this well.
+      let threadUrl = `https://mail.google.com/mail/#all/${encodeURIComponent(threadId)}`;
+
+      // Hint Gmail which account to use if we know the signed-in email.
+      const authUserParam = userEmail
+        ? `?authuser=${encodeURIComponent(userEmail)}`
+        : "";
+
+      const finalUrl = threadUrl + authUserParam;
+
+      if (typeof window !== "undefined") {
+        window.location.href = finalUrl;
+      }
+      return;
+    }
+
+    // Fallback: open a new compose window with basic fields prefilled.
+    const to = followup.lead_email;
+    const subject = followup.reason ? `Re: ${followup.reason}` : "Follow-up";
+
+    const base =
+      "https://mail.google.com/mail/?view=cm&fs=1" +
+      `&to=${encodeURIComponent(to)}` +
+      `&su=${encodeURIComponent(subject)}`;
+
+    const authUserParam = userEmail
+      ? `&authuser=${encodeURIComponent(userEmail)}`
+      : "";
+
+    const url = base + authUserParam;
+
+    if (typeof window !== "undefined") {
+      window.location.href = url;
+    }
+  }
+
   async function handleCopyReply() {
     const replyText = replyDraft || followup.ai_suggested_message || "";
     try {
@@ -616,6 +656,14 @@ export function FollowUpCard({
                 className="flex-1 min-w-[110px] rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 transition-all hover:shadow-sm active:scale-95"
               >
                 Add custom email
+              </button>
+              <button
+                type="button"
+                onClick={openReplyInGmail}
+                disabled={disabled}
+                className="flex-1 min-w-[120px] rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 transition-all hover:shadow-sm active:scale-95"
+              >
+                Reply in Gmail
               </button>
               <button
                 type="button"

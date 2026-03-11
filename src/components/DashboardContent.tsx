@@ -25,7 +25,6 @@ export function DashboardContent({ followups, userEmail }: DashboardContentProps
   const [isBulkProcessing, startBulkTransition] = useTransition();
   const [showWelcome, setShowWelcome] = useState(false);
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">("all");
-  const [hideReplied, setHideReplied] = useState(false);
   const [ageFilter, setAgeFilter] = useState<"all" | "last7" | "last30" | "older">(
     "all"
   );
@@ -77,14 +76,11 @@ export function DashboardContent({ followups, userEmail }: DashboardContentProps
       if (readFilter === "unread" && isRead) return false;
       if (readFilter === "read" && !isRead) return false;
 
-      const replied = Boolean(f.has_reply);
-      if (hideReplied && replied) return false;
-
       if (!isWithinAge(f.created_at)) return false;
 
       return true;
     });
-  }, [followups, activeTab, readFilter, hideReplied, ageFilter]);
+  }, [followups, activeTab, readFilter, ageFilter]);
 
   // Calculate counts per tab
   const tabCounts = useMemo(() => {
@@ -202,15 +198,6 @@ export function DashboardContent({ followups, userEmail }: DashboardContentProps
                   ))}
                 </div>
               </div>
-              <label className="inline-flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  className="h-3 w-3 rounded border-slate-300 text-sky-600"
-                  checked={hideReplied}
-                  onChange={(e) => setHideReplied(e.target.checked)}
-                />
-                <span>Hide replied threads</span>
-              </label>
               <div className="flex items-center gap-1">
                 <span className="font-medium">Age:</span>
                 <select
