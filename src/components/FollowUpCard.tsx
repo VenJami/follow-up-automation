@@ -5,19 +5,23 @@ import type {
   LeadFollowupTask,
   FollowupCategory,
   FollowupCategorySource,
+  ThreadMessage,
 } from "@/types/followup";
 import {
   approveFollowupAction,
   dismissFollowupAction,
   moveToCategoryAction,
   markFollowupReadAction,
+  sendReplyViaN8nAction,
 } from "@/app/dashboard/actions";
+import { ThreadView } from "./ThreadView";
 
 interface FollowUpCardProps {
   followup: LeadFollowupTask;
   userEmail?: string;
   selected?: boolean;
   onToggleSelected?: () => void;
+  threadMessages?: ThreadMessage[]; // Optional: thread messages from n8n or Supabase
 }
 
 const CATEGORIES: { value: FollowupCategory; label: string }[] = [
@@ -59,11 +63,14 @@ export function FollowUpCard({
   userEmail,
   selected = false,
   onToggleSelected,
+  threadMessages = [],
 }: FollowUpCardProps) {
   const [isReplyOpen, setIsReplyOpen] = useState(false);
+  const [isThreadViewOpen, setIsThreadViewOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [replyDraft, setReplyDraft] = useState(followup.ai_suggested_message);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState(false);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
   const [isProcessing, startTransition] = useTransition();
   const [showMoveTo, setShowMoveTo] = useState(false);
@@ -290,6 +297,44 @@ export function FollowUpCard({
     });
   }
 
+  async function handleSendReply() {
+    if (!followup.thread_id || !userEmail) {
+      console.error("Missing thread_id or userEmail");
+      return;
+    }
+
+    const replyText = replyDraft || followup.ai_suggested_message || "";
+    if (!replyText.trim()) {
+      alert("Please enter a reply message");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.append("followupId", followup.id);
+        formData.append("threadId", followup.thread_id!);
+        formData.append("replyBody", replyText);
+        formData.append("userEmail", userEmail);
+
+        await sendReplyViaN8nAction(formData);
+
+        // Show success feedback
+        setSendSuccess(true);
+        setTimeout(() => {
+          setSendSuccess(false);
+          setIsReplyOpen(false);
+        }, 2000);
+
+        // Optionally mark as approved after sending
+        // (or let n8n handle this via Supabase update)
+      } catch (error) {
+        console.error("Failed to send reply:", error);
+        alert("Failed to send reply. Please try again.");
+      }
+    });
+  }
+
   const disabled = isProcessing;
 
   // Auto-size suggested reply textarea when opened or when content changes
@@ -507,6 +552,42 @@ export function FollowUpCard({
             </p>
           </div>
 
+          {/* Thread view toggle */}
+          {followup.thread_id && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsThreadViewOpen((open) => !open)}
+                className="flex items-center gap-2 text-xs font-medium text-sky-600 hover:text-sky-700 transition-colors active:scale-95"
+              >
+                <svg
+                  className={`h-4 w-4 transition-transform ${isThreadViewOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+                {isThreadViewOpen ? "Hide thread" : "View thread"}
+              </button>
+
+              {/* Thread view */}
+              <div
+                className={[
+                  "overflow-hidden transition-all duration-300 ease-in-out",
+                  isThreadViewOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0",
+                ].join(" ")}
+              >
+                <ThreadView messages={threadMessages} leadEmail={followup.lead_email} />
+              </div>
+            </>
+          )}
+
           {/* Suggested reply toggle */}
           <button
             type="button"
@@ -611,7 +692,61 @@ export function FollowUpCard({
                 }}
                 rows={1}
                 className="w-full resize-none border-0 bg-transparent p-0 text-xs text-slate-800 outline-none focus:ring-0 transition-all"
+                placeholder="Type your reply here..."
               />
+              {/* Send Reply button (only show if thread_id exists) */}
+              {followup.thread_id && (
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleSendReply}
+                    disabled={disabled || !replyDraft.trim()}
+                    className={[
+                      "flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all active:scale-95",
+                      sendSuccess
+                        ? "bg-emerald-500 text-white"
+                        : "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-sm hover:shadow-md hover:from-sky-600 hover:to-blue-700",
+                      "disabled:cursor-not-allowed disabled:opacity-60",
+                    ].join(" ")}
+                  >
+                    {sendSuccess ? (
+                      <>
+                        <svg
+                          className="h-3 w-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        Sent!
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="h-3 w-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                          />
+                        </svg>
+                        Send Reply
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
