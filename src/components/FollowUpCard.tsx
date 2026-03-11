@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import type {
   LeadFollowupTask,
   FollowupCategory,
@@ -65,6 +66,7 @@ export function FollowUpCard({
   onToggleSelected,
   threadMessages = [],
 }: FollowUpCardProps) {
+  const router = useRouter();
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const [isThreadViewOpen, setIsThreadViewOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -354,10 +356,11 @@ export function FollowUpCard({
         "hover:shadow-md hover:border-slate-300",
       ].join(" ")}
     >
-      {/* Collapsed view - Email + Reason */}
+      {/* Collapsed view - Email + Reason - Entire div is clickable */}
       <div
+        onClick={() => setIsExpanded(true)}
         className={[
-          "p-4 transition-all duration-300",
+          "p-4 transition-all duration-300 cursor-pointer",
           isExpanded ? "opacity-0 max-h-0 overflow-hidden" : "opacity-100",
         ].join(" ")}
       >
@@ -367,8 +370,11 @@ export function FollowUpCard({
               {onToggleSelected && (
                 <button
                   type="button"
-                  onClick={onToggleSelected}
-                  className="flex h-4 w-4 items-center justify-center rounded border border-slate-300 bg-white text-[10px] text-slate-700 mr-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleSelected();
+                  }}
+                  className="flex h-4 w-4 items-center justify-center rounded border border-slate-300 bg-white text-[10px] text-slate-700 mr-1 z-10"
                   aria-label={selected ? "Deselect follow-up" : "Select follow-up"}
                 >
                   {selected ? "✓" : ""}
@@ -423,12 +429,7 @@ export function FollowUpCard({
               {followup.reason}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsExpanded(true)}
-            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-95"
-            aria-label="Expand details"
-          >
+          <div className="shrink-0 text-slate-400">
             <svg
               className="h-5 w-5"
               fill="none"
@@ -442,7 +443,7 @@ export function FollowUpCard({
                 d="M19 9l-7 7-7-7"
               />
             </svg>
-          </button>
+          </div>
         </div>
       </div>
 
@@ -694,56 +695,28 @@ export function FollowUpCard({
                 className="w-full resize-none border-0 bg-transparent p-0 text-xs text-slate-800 outline-none focus:ring-0 transition-all"
                 placeholder="Type your reply here..."
               />
-              {/* Send Reply button (only show if thread_id exists) */}
+              {/* Send Reply button - DISABLED for now */}
               {followup.thread_id && (
                 <div className="mt-2 flex justify-end">
                   <button
                     type="button"
-                    onClick={handleSendReply}
-                    disabled={disabled || !replyDraft.trim()}
-                    className={[
-                      "flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all active:scale-95",
-                      sendSuccess
-                        ? "bg-emerald-500 text-white"
-                        : "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-sm hover:shadow-md hover:from-sky-600 hover:to-blue-700",
-                      "disabled:cursor-not-allowed disabled:opacity-60",
-                    ].join(" ")}
+                    disabled={true}
+                    className="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold bg-slate-300 text-slate-500 cursor-not-allowed"
                   >
-                    {sendSuccess ? (
-                      <>
-                        <svg
-                          className="h-3 w-3"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        Sent!
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="h-3 w-3"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                          />
-                        </svg>
-                        Send Reply
-                      </>
-                    )}
+                    <svg
+                      className="h-3 w-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      />
+                    </svg>
+                    Send Reply (Coming soon)
                   </button>
                 </div>
               )}
@@ -789,31 +762,16 @@ export function FollowUpCard({
               >
                 Dismiss
               </button>
-              <button
-                type="button"
-                onClick={openCustomGmailCompose}
-                disabled={disabled}
-                className="flex-1 min-w-[110px] rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 transition-all hover:shadow-sm active:scale-95"
-              >
-                Add custom email
-              </button>
-              <button
-                type="button"
-                onClick={openReplyInGmail}
-                disabled={disabled}
-                className="flex-1 min-w-[120px] rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 transition-all hover:shadow-sm active:scale-95"
-              >
-                Reply in Gmail
-              </button>
-              <button
-                type="button"
-                onClick={handleApprove}
-                disabled={disabled}
-                data-approve-id={followup.id}
-                className="flex-1 min-w-[140px] rounded-md bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:shadow-md hover:from-sky-600 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-60 transition-all active:scale-95"
-              >
-                Approve &amp; Open Gmail
-              </button>
+              {followup.thread_id && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/dashboard/thread/${followup.id}`)}
+                  disabled={disabled}
+                  className="flex-1 min-w-[140px] rounded-md bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:shadow-md hover:from-sky-600 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-60 transition-all active:scale-95"
+                >
+                  Create a reply
+                </button>
+              )}
             </div>
           </div>
         </div>
