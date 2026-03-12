@@ -174,17 +174,30 @@ function parseFromHeader(fromHeader: string): {
 /**
  * Fetches thread messages for a specific follow-up task.
  * Maps database columns to ThreadMessage interface.
+ * @param followupTaskId - The follow-up task ID
+ * @param limit - Maximum number of messages to return (default: 50, set to null for all)
+ * @param offset - Number of messages to skip (for pagination, default: 0)
  */
 export async function getThreadMessages(
-  followupTaskId: string
+  followupTaskId: string,
+  limit: number | null = 50,
+  offset: number = 0
 ): Promise<ThreadMessage[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("thread_messages")
     .select("*")
     .eq("followup_task_id", followupTaskId)
     .order("sent_at", { ascending: true }); // Oldest first
+
+  if (limit !== null) {
+    query = query.range(offset, offset + limit - 1);
+  } else if (offset > 0) {
+    query = query.range(offset, offset + 999999); // Large number if no limit but has offset
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Supabase error loading thread messages", error);
@@ -215,4 +228,25 @@ export async function getThreadMessages(
       is_unread: row.is_unread ?? false,
     } as ThreadMessage;
   });
+}
+
+/**
+ * Gets the total count of thread messages for a follow-up task.
+ */
+export async function getThreadMessagesCount(
+  followupTaskId: string
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+
+  const { count, error } = await supabase
+    .from("thread_messages")
+    .select("*", { count: "exact", head: true })
+    .eq("followup_task_id", followupTaskId);
+
+  if (error) {
+    console.error("Supabase error counting thread messages", error);
+    return 0;
+  }
+
+  return count ?? 0;
 }
