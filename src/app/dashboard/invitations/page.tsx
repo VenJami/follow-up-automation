@@ -135,7 +135,7 @@ export default function InvitationsPage() {
               <h2 className="mb-4 text-sm font-semibold text-slate-900">
                 Quick Actions
               </h2>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <button
                   type="button"
                   disabled
@@ -157,6 +157,12 @@ export default function InvitationsPage() {
                 >
                   User Invite Links
                 </button>
+                <Link
+                  href="/dashboard/invitations/customize"
+                  className="flex h-20 flex-col items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                >
+                  Customize Invitation
+                </Link>
               </div>
 
               <div className="mt-4 space-y-2 text-xs">
