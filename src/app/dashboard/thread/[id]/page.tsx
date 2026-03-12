@@ -1,7 +1,7 @@
 import { getUserOrRedirect } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { getThreadMessages } from "@/lib/followups";
 import { ThreadPageContent } from "@/components/ThreadPageContent";
-import type { ThreadMessage } from "@/types/followup";
 import { notFound } from "next/navigation";
 
 interface ThreadPageProps {
@@ -24,10 +24,8 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     notFound();
   }
 
-  // TODO: Fetch thread messages from Supabase or n8n
-  // For now, we'll pass empty array and document what's needed
-  // See memory-bank/thread-data-requirements.md for data structure
-  const threadMessages: ThreadMessage[] = [];
+  // Fetch thread messages from Supabase
+  const threadMessages = await getThreadMessages(followup.id);
 
   return (
     <ThreadPageContent

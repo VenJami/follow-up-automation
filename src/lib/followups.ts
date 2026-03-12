@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
-import type { LeadFollowupTask, FollowupCategory } from "@/types/followup";
+import type { LeadFollowupTask, FollowupCategory, ThreadMessage } from "@/types/followup";
 
 const TABLE_NAME = "lead_followup_tasks";
 
@@ -143,4 +143,76 @@ export async function bulkMarkReadState(
   if (error) {
     console.error("Supabase error bulk-updating read state", error);
   }
+}
+
+/**
+ * Parses "From" header to extract sender name and email.
+ * Example: "Lois de Armas <lois@finehome.pro>" → { name: "Lois de Armas", email: "lois@finehome.pro" }
+ */
+function parseFromHeader(fromHeader: string): {
+  name: string | null;
+  email: string;
+} {
+  if (!fromHeader) return { name: null, email: "" };
+
+  // Try to match "Name <email@domain.com>" format
+  const match = fromHeader.match(/^(.+?)\s*<(.+?)>$/);
+  if (match) {
+    return {
+      name: match[1].trim() || null,
+      email: match[2].trim(),
+    };
+  }
+
+  // If no angle brackets, assume the whole thing is the email
+  return {
+    name: null,
+    email: fromHeader.trim(),
+  };
+}
+
+/**
+ * Fetches thread messages for a specific follow-up task.
+ * Maps database columns to ThreadMessage interface.
+ */
+export async function getThreadMessages(
+  followupTaskId: string
+): Promise<ThreadMessage[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("thread_messages")
+    .select("*")
+    .eq("followup_task_id", followupTaskId)
+    .order("sent_at", { ascending: true }); // Oldest first
+
+  if (error) {
+    console.error("Supabase error loading thread messages", error);
+    return [];
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  // Map database columns to ThreadMessage interface
+  return data.map((row: any) => {
+    const fromParsed = parseFromHeader(row.from_email || "");
+    const sentAt = row.sent_at
+      ? new Date(row.sent_at).toISOString()
+      : new Date().toISOString();
+
+    return {
+      id: row.gmail_message_id || row.id,
+      from: row.from_email || "", // Raw header as fallback
+      to: row.to_email || "",
+      subject: row.subject || "",
+      body: row.body || "",
+      date: sentAt,
+      isFromMe: row.is_from_me ?? false,
+      sender_name: fromParsed.name,
+      sender_email: fromParsed.email,
+      is_unread: row.is_unread ?? false,
+    } as ThreadMessage;
+  });
 }
