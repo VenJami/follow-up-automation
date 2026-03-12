@@ -553,42 +553,6 @@ export function FollowUpCard({
             </p>
           </div>
 
-          {/* Thread view toggle */}
-          {followup.thread_id && (
-            <>
-              <button
-                type="button"
-                onClick={() => setIsThreadViewOpen((open) => !open)}
-                className="flex items-center gap-2 text-xs font-medium text-sky-600 hover:text-sky-700 transition-colors active:scale-95"
-              >
-                <svg
-                  className={`h-4 w-4 transition-transform ${isThreadViewOpen ? "rotate-180" : ""}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-                {isThreadViewOpen ? "Hide thread" : "View thread"}
-              </button>
-
-              {/* Thread view */}
-              <div
-                className={[
-                  "overflow-hidden transition-all duration-300 ease-in-out",
-                  isThreadViewOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0",
-                ].join(" ")}
-              >
-                <ThreadView messages={threadMessages} leadEmail={followup.lead_email} />
-              </div>
-            </>
-          )}
-
           {/* Suggested reply toggle */}
           <button
             type="button"
