@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { ThreadMessage } from "@/types/followup";
 import { MessageAvatar } from "./MessageAvatar";
 
+const COLLAPSED_MAX_HEIGHT_PX = 160;
+
 interface ThreadViewProps {
   messages: ThreadMessage[];
   leadEmail: string;
@@ -60,7 +62,7 @@ function formatMessageBody(body: string): React.ReactNode {
       elements.push(
         <div
           key={`quote-${elements.length}`}
-          className="my-2 border-l-4 border-slate-300 pl-4 text-sm text-slate-600 italic"
+          className="my-2 border-l-4 border-slate-300 pl-2 text-sm text-slate-600 italic"
         >
           {currentQuoteBlock.map((line, idx) => (
             <div key={idx} className="whitespace-pre-wrap">
@@ -116,10 +118,20 @@ function formatMessageBody(body: string): React.ReactNode {
 
 export function ThreadView({ messages, leadEmail, messagesPerPage = 50 }: ThreadViewProps) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const totalPages = Math.ceil(messages.length / messagesPerPage);
   const startIndex = (currentPage - 1) * messagesPerPage;
   const endIndex = startIndex + messagesPerPage;
   const displayedMessages = messages.slice(startIndex, endIndex);
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   if (!messages || messages.length === 0) {
     return (
@@ -138,11 +150,13 @@ export function ThreadView({ messages, leadEmail, messagesPerPage = 50 }: Thread
         const displayEmail = message.sender_email || message.from;
         const isLast = index === displayedMessages.length - 1;
 
+        const isExpanded = expandedIds.has(message.id);
+
         return (
           <div
             key={message.id}
             className={[
-              "px-4 py-4 border-b border-slate-100",
+              "px-2 sm:px-3 py-4 border-b border-slate-100",
               isLast ? "border-b-0" : "",
               isFromMe ? "bg-sky-50/20" : "bg-white",
               isUnread && !isFromMe ? "bg-blue-50/30" : "",
@@ -186,9 +200,39 @@ export function ThreadView({ messages, leadEmail, messagesPerPage = 50 }: Thread
               </div>
             </div>
 
-            {/* Message body with Gmail-like formatting */}
-            <div className="ml-[52px] pl-0">
-              {formatMessageBody(message.body)}
+            {/* Message body: full width, expand/collapse */}
+            <div className="w-full min-w-0">
+              <div
+                className="relative overflow-hidden transition-[max-height] duration-200 ease-out"
+                style={{
+                  maxHeight: isExpanded ? "none" : COLLAPSED_MAX_HEIGHT_PX,
+                }}
+              >
+                <div className={!isExpanded ? "overflow-hidden" : ""}>
+                  {formatMessageBody(message.body)}
+                </div>
+                {!isExpanded && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none"
+                    style={
+                      isFromMe
+                        ? {
+                            background:
+                              "linear-gradient(to top, rgba(240, 249, 255, 0.98), transparent)",
+                          }
+                        : undefined
+                    }
+                    aria-hidden
+                  />
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleExpanded(message.id)}
+                className="mt-1 text-xs font-medium text-slate-600 hover:text-slate-900 hover:underline focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1 rounded"
+              >
+                {isExpanded ? "Collapse" : "Expand"}
+              </button>
             </div>
           </div>
         );
@@ -196,7 +240,7 @@ export function ThreadView({ messages, leadEmail, messagesPerPage = 50 }: Thread
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div className="px-2 sm:px-3 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="text-xs text-slate-600">
             Showing {startIndex + 1}-{Math.min(endIndex, messages.length)} of {messages.length} messages
           </div>

@@ -67,8 +67,8 @@ export function ThreadPageContent({
         </div>
       </div>
 
-      {/* Main content - Gmail-like layout */}
-      <div className="mx-auto max-w-4xl px-4 py-6">
+      {/* Main content - full width thread, minimal side margin */}
+      <div className="mx-auto max-w-4xl px-2 sm:px-4 py-6">
         {/* Subject line */}
         <div className="mb-4 border-b border-slate-200 pb-3">
           <div className="flex items-center gap-2 text-sm text-slate-600">
