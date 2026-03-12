@@ -25,9 +25,9 @@ export function DashboardContent({ followups, userEmail }: DashboardContentProps
   const [isBulkProcessing, startBulkTransition] = useTransition();
   const [showWelcome, setShowWelcome] = useState(false);
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">("all");
-  const [ageFilter, setAgeFilter] = useState<"all" | "last7" | "last30" | "older">(
-    "all"
-  );
+  const [ageFilter, setAgeFilter] = useState<
+    "all" | "last24" | "last7" | "last30" | "older"
+  >("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,8 +60,12 @@ export function DashboardContent({ followups, userEmail }: DashboardContentProps
       if (ageFilter === "all") return true;
       const created = new Date(createdAt).getTime();
       if (Number.isNaN(created)) return true;
-      const diffDays = (now - created) / (1000 * 60 * 60 * 24);
 
+      const diffMs = now - created;
+      const diffHours = diffMs / (1000 * 60 * 60);
+      const diffDays = diffHours / 24;
+
+      if (ageFilter === "last24") return diffHours <= 24;
       if (ageFilter === "last7") return diffDays <= 7;
       if (ageFilter === "last30") return diffDays <= 30;
       if (ageFilter === "older") return diffDays > 30;
@@ -208,6 +212,7 @@ export function DashboardContent({ followups, userEmail }: DashboardContentProps
                   className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
                 >
                   <option value="all">All</option>
+                  <option value="last24">Last 24 hours</option>
                   <option value="last7">Last 7 days</option>
                   <option value="last30">Last 30 days</option>
                   <option value="older">Older</option>
