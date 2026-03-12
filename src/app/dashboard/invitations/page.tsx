@@ -135,7 +135,7 @@ export default function InvitationsPage() {
               <h2 className="mb-4 text-sm font-semibold text-slate-900">
                 Quick Actions
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <button
                   type="button"
                   disabled
@@ -157,9 +157,21 @@ export default function InvitationsPage() {
                 >
                   User Invite Links
                 </button>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2 rounded-lg border border-sky-200 bg-sky-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-sky-800">
+                    Customize invitation content
+                  </p>
+                  <p className="text-[11px] text-sky-700">
+                    Choose presets for Google, Facebook, or a no-sign-in review page and
+                    tweak the message before sending.
+                  </p>
+                </div>
                 <Link
                   href="/dashboard/invitations/customize"
-                  className="flex h-20 flex-col items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                  className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sky-600"
                 >
                   Customize Invitation
                 </Link>
