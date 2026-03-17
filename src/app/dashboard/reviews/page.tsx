@@ -53,7 +53,6 @@ function InitialAvatar({ name }: { name: string }) {
   );
 }
 
-export default function ReviewsPage() {
 export default async function ReviewsPage() {
   await getUserOrRedirect();
   const supabase = await createSupabaseServerClient();
