@@ -183,7 +183,7 @@ export default function InvitationsPage() {
                 </p>
                 <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 sm:flex-row sm:items-center">
                   <span className="flex-1 truncate text-[11px] text-slate-600">
-                    https://example.com/t/leslie-sullivan-hometown-realty-group
+                    /review-leslie-sullivan-hometown-realty-group
                   </span>
                   <button
                     type="button"

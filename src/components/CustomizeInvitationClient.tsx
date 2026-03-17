@@ -57,17 +57,29 @@ const PRESET_CONTENT: Record<
   },
 };
 
+const DEFAULT_DIRECT_REVIEW_LINK = "/review-leslie-sullivan-hometown-realty-group";
+
 export function CustomizeInvitationClient() {
   const [activePreset, setActivePreset] = useState<PresetKey>("google");
   const [subject, setSubject] = useState(PRESET_CONTENT.google.subject);
-  const [body, setBody] = useState(PRESET_CONTENT.google.body);
+  const [body, setBody] = useState(
+    PRESET_CONTENT.google.body.replace(
+      "{{directReviewLink}}",
+      DEFAULT_DIRECT_REVIEW_LINK
+    )
+  );
 
   const activeMeta = useMemo(() => PRESET_CONTENT[activePreset], [activePreset]);
 
   function handlePresetChange(key: PresetKey) {
     setActivePreset(key);
     setSubject(PRESET_CONTENT[key].subject);
-    setBody(PRESET_CONTENT[key].body);
+    setBody(
+      PRESET_CONTENT[key].body.replace(
+        "{{directReviewLink}}",
+        DEFAULT_DIRECT_REVIEW_LINK
+      )
+    );
   }
 
   return (
