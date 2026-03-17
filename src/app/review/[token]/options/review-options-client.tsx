@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getReviewInvite } from "@/lib/reviewInviteStore";
+import { setSelectedPlatformAction } from "../actions";
 
 function BrandButton({
   label,
@@ -75,6 +76,7 @@ export function ReviewOptionsClient({ token }: { token: string }) {
               label="Review on Google"
               sublabel="Fastest option and helps the most"
               onClick={() => {
+                void setSelectedPlatformAction({ token, platform: "google" });
                 window.location.href = googleUrl;
               }}
             />
@@ -83,6 +85,7 @@ export function ReviewOptionsClient({ token }: { token: string }) {
               label="Review on Facebook"
               sublabel="Great if you’re active on Facebook"
               onClick={() => {
+                void setSelectedPlatformAction({ token, platform: "facebook" });
                 window.location.href = facebookUrl;
               }}
             />
@@ -104,7 +107,10 @@ export function ReviewOptionsClient({ token }: { token: string }) {
             >
               <button
                 type="button"
-                onClick={() => router.push(`/review/${encodeURIComponent(token)}/write`)}
+                onClick={() => {
+                  void setSelectedPlatformAction({ token, platform: "internal" });
+                  router.push(`/review/${encodeURIComponent(token)}/write`);
+                }}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-900 hover:bg-slate-100"
               >
                 I’ll review here
@@ -115,7 +121,10 @@ export function ReviewOptionsClient({ token }: { token: string }) {
 
               <button
                 type="button"
-                onClick={() => router.push(`/review/${encodeURIComponent(token)}/video`)}
+                onClick={() => {
+                  void setSelectedPlatformAction({ token, platform: "video" });
+                  router.push(`/review/${encodeURIComponent(token)}/video`);
+                }}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-900 hover:bg-slate-100"
               >
                 Record a video review

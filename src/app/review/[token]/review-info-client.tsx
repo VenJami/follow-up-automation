@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveReviewInvite } from "@/lib/reviewInviteStore";
+import { upsertReviewInviteAction } from "./actions";
 
 function Input({
   label,
@@ -55,7 +56,7 @@ export function ReviewInfoClient({ token }: { token: string }) {
     return true;
   }, [firstName, lastName, email, consent]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitted(true);
@@ -65,13 +66,25 @@ export function ReviewInfoClient({ token }: { token: string }) {
       return;
     }
 
-    saveReviewInvite(token, {
+    const payload = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
       phone: phone.trim() || undefined,
       consent,
-    });
+    };
+
+    // Phase 2: store in Supabase (server action)
+    try {
+      await upsertReviewInviteAction({ token, ...payload });
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong saving your info. Please try again.");
+      return;
+    }
+
+    // Keep local mock store for now (handy in dev and as a fallback)
+    saveReviewInvite(token, payload);
 
     router.push(`/review/${encodeURIComponent(token)}/options`);
   }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { StarPicker } from "@/components/StarPicker";
 import { getReviewInvite } from "@/lib/reviewInviteStore";
+import { submitInternalReviewAction, setSelectedPlatformAction } from "../actions";
 
 export function ReviewWriteClient({ token }: { token: string }) {
   const contact = useMemo(() => getReviewInvite(token), [token]);
@@ -11,6 +12,8 @@ export function ReviewWriteClient({ token }: { token: string }) {
   const [text, setText] = useState("");
   const [imageName, setImageName] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const canSubmit = rating > 0 && text.trim().length > 10;
 
@@ -90,17 +93,45 @@ export function ReviewWriteClient({ token }: { token: string }) {
 
             {submitted && (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                Thank you! Your review has been captured (mock). In the next phase this
-                will save to the database and optionally publish to the Review Board.
+                Thank you! Your review has been saved. It will appear on the Review Board
+                once publishing is enabled.
+              </div>
+            )}
+            {submitError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                {submitError}
               </div>
             )}
 
             <button
               type="button"
               onClick={() => {
-                setSubmitted(true);
+                void (async () => {
+                  if (isSubmitting) return;
+                  setSubmitError(null);
+                  setIsSubmitting(true);
+                  try {
+                    // Phase 4: ensure platform recorded
+                    await setSelectedPlatformAction({ token, platform: "internal" });
+                    // Phase 3: insert review + mark invite completed
+                    await submitInternalReviewAction({
+                      token,
+                      rating,
+                      body: text.trim(),
+                      imageUrl: null,
+                    });
+                    setSubmitted(true);
+                  } catch (err) {
+                    console.error(err);
+                    setSubmitError(
+                      "Failed to submit your review. Please refresh the page and try again."
+                    );
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                })();
               }}
-              disabled={!canSubmit}
+              disabled={!canSubmit || isSubmitting}
               className={[
                 "w-full rounded-full px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all",
                 canSubmit
@@ -108,7 +139,7 @@ export function ReviewWriteClient({ token }: { token: string }) {
                   : "bg-slate-300 cursor-not-allowed",
               ].join(" ")}
             >
-              Submit review
+              {isSubmitting ? "Submitting…" : "Submit review"}
             </button>
           </div>
 
