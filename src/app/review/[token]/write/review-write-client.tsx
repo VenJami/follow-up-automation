@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { StarPicker } from "@/components/StarPicker";
 import { getReviewInvite } from "@/lib/reviewInviteStore";
 import { submitInternalReviewAction, setSelectedPlatformAction } from "../actions";
 
 export function ReviewWriteClient({ token }: { token: string }) {
+  const router = useRouter();
   const contact = useMemo(() => getReviewInvite(token), [token]);
 
   const [rating, setRating] = useState(0);
@@ -121,6 +123,7 @@ export function ReviewWriteClient({ token }: { token: string }) {
                       imageUrl: null,
                     });
                     setSubmitted(true);
+                    router.push(`/review/${encodeURIComponent(token)}/thanks`);
                   } catch (err) {
                     console.error(err);
                     setSubmitError(

@@ -1,66 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getUserOrRedirect } from "@/lib/auth";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = {
   title: "Client Reviews | Follow-Up Inbox",
 };
 
-type ReviewSource = "Google" | "Facebook" | "Website";
+type ReviewPlatform = "google" | "facebook" | "internal" | "video";
 
-interface Review {
-  id: number;
-  name: string;
+type ReviewRow = {
+  id: string;
   rating: number;
-  text: string;
-  source: ReviewSource;
-  date: string;
-}
-
-const mockSummary = {
-  overallRating: 4.9,
-  totalReviews: 138,
+  body: string;
+  created_at: string;
+  review_invites?: {
+    first_name: string;
+    last_name: string;
+    selected_platform: ReviewPlatform | null;
+  } | null;
 };
-
-const mockSourceStats: { source: ReviewSource; rating: number; count: number }[] = [
-  { source: "Google", rating: 4.9, count: 98 },
-  { source: "Facebook", rating: 4.8, count: 26 },
-  { source: "Website", rating: 5.0, count: 14 },
-];
-
-const mockReviews: Review[] = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    rating: 5,
-    text: "Leslie was amazing throughout the whole home buying process!",
-    source: "Google",
-    date: "March 2026",
-  },
-  {
-    id: 2,
-    name: "Michael Chen",
-    rating: 5,
-    text: "Super responsive, professional, and truly had our best interests at heart.",
-    source: "Facebook",
-    date: "February 2026",
-  },
-  {
-    id: 3,
-    name: "Emily Davis",
-    rating: 4.8,
-    text: "Made a complex sale feel simple. Highly recommend working with Leslie.",
-    source: "Website",
-    date: "January 2026",
-  },
-  {
-    id: 4,
-    name: "Carlos Ramirez",
-    rating: 5,
-    text: "Leslie went above and beyond to help us find the right home.",
-    source: "Google",
-    date: "December 2025",
-  },
-];
 
 function StarRating({ value }: { value: number }) {
   const fullStars = Math.round(value);
@@ -95,6 +54,64 @@ function InitialAvatar({ name }: { name: string }) {
 }
 
 export default function ReviewsPage() {
+export default async function ReviewsPage() {
+  await getUserOrRedirect();
+  const supabase = await createSupabaseServerClient();
+
+  const { data: invitePlatforms, error: invitePlatformsError } = await supabase
+    .from("review_invites")
+    .select("selected_platform, status")
+    .limit(5000);
+
+  if (invitePlatformsError) {
+    throw new Error(invitePlatformsError.message);
+  }
+
+  const { data: reviews, error: reviewsError } = await supabase
+    .from("reviews")
+    .select(
+      "id, rating, body, created_at, review_invites(first_name,last_name,selected_platform)"
+    )
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (reviewsError) {
+    throw new Error(reviewsError.message);
+  }
+
+  const reviewRows = (reviews ?? []) as ReviewRow[];
+
+  const totalInternalReviews = reviewRows.length;
+  const avgRating =
+    totalInternalReviews > 0
+      ? reviewRows.reduce((sum, r) => sum + (r.rating ?? 0), 0) /
+        totalInternalReviews
+      : 0;
+
+  const completedInvites = (invitePlatforms ?? []).filter(
+    (i) => i.status === "completed"
+  ).length;
+
+  const platformCounts = (invitePlatforms ?? []).reduce<Record<string, number>>(
+    (acc, row) => {
+      const key = row.selected_platform ?? "unknown";
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    },
+    {}
+  );
+
+  const totalPlatformSelections = Object.values(platformCounts).reduce(
+    (sum, v) => sum + v,
+    0
+  );
+
+  const starCounts = reviewRows.reduce<Record<number, number>>((acc, r) => {
+    const s = Math.max(1, Math.min(5, Math.round(r.rating ?? 0)));
+    acc[s] = (acc[s] ?? 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <main className="min-h-screen px-4 py-6">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -105,7 +122,7 @@ export default function ReviewsPage() {
               <h1 className="text-2xl font-semibold text-slate-900">Client Reviews</h1>
               <p className="text-sm text-slate-600">
                 Overview of your online reputation across Google, Facebook, and your
-                website. Mock data only for now.
+                website.
               </p>
             </div>
           </div>
@@ -139,26 +156,24 @@ export default function ReviewsPage() {
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-sm font-medium text-slate-700">Reviews Gained</h2>
-              <span className="text-[11px] text-slate-500">Google</span>
+              <span className="text-[11px] text-slate-500">Internal</span>
             </div>
             <div className="space-y-2 text-xs text-slate-600">
               <div className="flex items-center justify-between">
                 <span>Reviews before system</span>
-                <span className="font-semibold text-slate-900">6</span>
+                <span className="font-semibold text-slate-900">0</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Current total reviews</span>
-                <span className="font-semibold text-slate-900">
-                  {mockSummary.totalReviews}
-                </span>
+                <span className="font-semibold text-slate-900">{completedInvites}</span>
               </div>
               <div className="flex items-center justify-between text-emerald-600">
                 <span>Reviews gained with automation</span>
-                <span className="font-semibold">+7</span>
+                <span className="font-semibold">+{completedInvites}</span>
               </div>
               <div className="flex items-center justify-between text-emerald-600">
                 <span>Increase in reviews</span>
-                <span className="font-semibold">+116%</span>
+                <span className="font-semibold">—</span>
               </div>
             </div>
           </section>
@@ -171,7 +186,7 @@ export default function ReviewsPage() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex flex-col gap-2">
                 <p className="text-xs text-slate-600">So far posted on social</p>
-                <p className="text-3xl font-semibold text-slate-900">19</p>
+                <p className="text-3xl font-semibold text-slate-900">0</p>
                 <p className="text-[11px] text-slate-500">All time</p>
               </div>
               <div className="flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-700">
@@ -186,16 +201,24 @@ export default function ReviewsPage() {
               Review Platforms
             </h2>
             <div className="space-y-3 text-xs text-slate-600">
-              {mockSourceStats.map((source) => {
-                const percent = Math.round(
-                  (source.count / mockSummary.totalReviews) * 100
-                );
+              {(
+                [
+                  ["google", "Google"],
+                  ["facebook", "Facebook"],
+                  ["internal", "Internal"],
+                ] as const
+              ).map(([key, label]) => {
+                const count = platformCounts[key] ?? 0;
+                const percent =
+                  totalPlatformSelections > 0
+                    ? Math.round((count / totalPlatformSelections) * 100)
+                    : 0;
                 return (
-                  <div key={source.source}>
+                  <div key={key}>
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="font-medium">{source.source}</span>
+                      <span className="font-medium">{label}</span>
                       <span className="text-[11px] text-slate-500">
-                        {source.count} reviews
+                        {count} selections
                       </span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
@@ -213,12 +236,14 @@ export default function ReviewsPage() {
           {/* Invites sent */}
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-sm font-medium text-slate-700">Invites Sent</h2>
-            <p className="mb-2 text-xs text-slate-500">Total sent: 14</p>
+            <p className="mb-2 text-xs text-slate-500">
+              Total started: {(invitePlatforms ?? []).length}
+            </p>
             <div className="space-y-3 text-xs text-slate-600">
               <div>
                 <div className="mb-1 flex items-center justify-between">
                   <span>Invite links</span>
-                  <span className="font-medium">13</span>
+                  <span className="font-medium">{(invitePlatforms ?? []).length}</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full w-[90%] rounded-full bg-emerald-500" />
@@ -226,8 +251,8 @@ export default function ReviewsPage() {
               </div>
               <div>
                 <div className="mb-1 flex items-center justify-between">
-                  <span>Dashboard</span>
-                  <span className="font-medium">1</span>
+                  <span>Completed</span>
+                  <span className="font-medium">{completedInvites}</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full w-[10%] rounded-full bg-sky-500" />
@@ -242,7 +267,7 @@ export default function ReviewsPage() {
               Star Distribution
             </h2>
             <p className="mb-2 text-xs text-slate-500">
-              Total reviews: {mockSummary.totalReviews}
+              Internal reviews: {totalInternalReviews}
             </p>
             <div className="space-y-2 text-xs text-slate-600">
               {[5, 4, 3, 2, 1].map((stars) => (
@@ -251,7 +276,14 @@ export default function ReviewsPage() {
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                     <div
                       className="h-full rounded-full bg-amber-400"
-                      style={{ width: `${stars * 15}%` }}
+                      style={{
+                        width:
+                          totalInternalReviews > 0
+                            ? `${Math.round(
+                                ((starCounts[stars] ?? 0) / totalInternalReviews) * 100
+                              )}%`
+                            : "0%",
+                      }}
                     />
                   </div>
                 </div>
@@ -281,24 +313,40 @@ export default function ReviewsPage() {
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-slate-700">Recent reviews</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            {mockReviews.map((review) => (
+            {reviewRows.map((review) => {
+              const name = review.review_invites
+                ? `${review.review_invites.first_name} ${review.review_invites.last_name}`.trim()
+                : "Anonymous";
+              const source =
+                review.review_invites?.selected_platform === "google"
+                  ? "Google"
+                  : review.review_invites?.selected_platform === "facebook"
+                  ? "Facebook"
+                  : "Internal";
+
+              const date = new Date(review.created_at).toLocaleString(undefined, {
+                month: "short",
+                year: "numeric",
+              });
+
+              return (
               <article
                 key={review.id}
                 className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="mb-2 flex items-start gap-3">
-                  <InitialAvatar name={review.name} />
+                  <InitialAvatar name={name} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-medium text-slate-900">
-                        {review.name}
+                        {name}
                       </p>
                       <span className="shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                        {review.source}
+                        {source}
                       </span>
                     </div>
                     <p className="mt-0.5 text-[11px] text-slate-500">
-                      {review.date}
+                      {date}
                     </p>
                     <div className="mt-1 flex items-center gap-1">
                       <StarRating value={review.rating} />
@@ -309,11 +357,18 @@ export default function ReviewsPage() {
                   </div>
                 </div>
                 <p className="mt-1 text-sm text-slate-700">
-                  {review.text}
+                  {review.body}
                 </p>
               </article>
-            ))}
+              );
+            })}
           </div>
+
+          {reviewRows.length === 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600 shadow-sm">
+              No reviews yet. The first internal review submitted will show up here.
+            </div>
+          )}
         </section>
       </div>
     </main>
