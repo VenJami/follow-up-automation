@@ -14,11 +14,12 @@ type ReviewRow = {
   rating: number;
   body: string;
   created_at: string;
+  // Supabase returns nested relations as arrays by default.
   review_invites?: {
     first_name: string;
     last_name: string;
     selected_platform: ReviewPlatform | null;
-  } | null;
+  }[] | null;
 };
 
 function StarRating({ value }: { value: number }) {
@@ -78,7 +79,7 @@ export default async function ReviewsPage() {
     throw new Error(reviewsError.message);
   }
 
-  const reviewRows = (reviews ?? []) as ReviewRow[];
+  const reviewRows: ReviewRow[] = (reviews ?? []) as unknown as ReviewRow[];
 
   const totalInternalReviews = reviewRows.length;
   const avgRating =
@@ -313,13 +314,14 @@ export default async function ReviewsPage() {
           <h2 className="text-sm font-medium text-slate-700">Recent reviews</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {reviewRows.map((review) => {
-              const name = review.review_invites
-                ? `${review.review_invites.first_name} ${review.review_invites.last_name}`.trim()
+              const invite = review.review_invites?.[0] ?? null;
+              const name = invite
+                ? `${invite.first_name} ${invite.last_name}`.trim()
                 : "Anonymous";
               const source =
-                review.review_invites?.selected_platform === "google"
+                invite?.selected_platform === "google"
                   ? "Google"
-                  : review.review_invites?.selected_platform === "facebook"
+                  : invite?.selected_platform === "facebook"
                   ? "Facebook"
                   : "Internal";
 
