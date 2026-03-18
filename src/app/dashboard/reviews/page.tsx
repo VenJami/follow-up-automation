@@ -14,13 +14,10 @@ type ReviewRow = {
   rating: number;
   body: string;
   created_at: string;
-  // `reviews.invite_token -> review_invites.token` is a many-to-one relation,
-  // so this comes back as a single object (or null).
-  review_invites?: {
-    first_name: string;
-    last_name: string;
-    selected_platform: ReviewPlatform | null;
-  } | null;
+  author_name: string | null;
+  source: "google" | "facebook" | "website" | null;
+  author_photo: string | null;
+  review_date: string | null;
 };
 
 function StarRating({ value }: { value: number }) {
@@ -55,6 +52,35 @@ function InitialAvatar({ name }: { name: string }) {
   );
 }
 
+function AuthorAvatar({ name, photoUrl }: { name: string; photoUrl?: string | null }) {
+  if (photoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={photoUrl}
+        alt=""
+        className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
+  return <InitialAvatar name={name} />;
+}
+
+function sourceLabel(source: ReviewRow["source"]): string {
+  switch (source) {
+    case "google":
+      return "Google";
+    case "facebook":
+      return "Facebook";
+    case "website":
+      return "Website";
+    default:
+      return "Unknown";
+  }
+}
+
 export default async function ReviewsPage() {
   await getUserOrRedirect();
   const supabase = await createSupabaseServerClient();
@@ -70,9 +96,8 @@ export default async function ReviewsPage() {
 
   const { data: reviews, error: reviewsError } = await supabase
     .from("reviews")
-    .select(
-      "id, rating, body, created_at, review_invites(first_name,last_name,selected_platform)"
-    )
+    .select("id, rating, body, created_at, author_name, author_photo, source, review_date")
+    .order("review_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -315,18 +340,12 @@ export default async function ReviewsPage() {
           <h2 className="text-sm font-medium text-slate-700">Recent reviews</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {reviewRows.map((review) => {
-              const invite = review.review_invites ?? null;
-              const name = invite
-                ? `${invite.first_name} ${invite.last_name}`.trim()
-                : "Anonymous";
-              const source =
-                invite?.selected_platform === "google"
-                  ? "Google"
-                  : invite?.selected_platform === "facebook"
-                  ? "Facebook"
-                  : "Internal";
+              const name = (review.author_name ?? "").trim() || "Anonymous";
+              const source = sourceLabel(review.source);
 
-              const date = new Date(review.created_at).toLocaleString(undefined, {
+              const date = new Date(
+                review.review_date ?? review.created_at
+              ).toLocaleString(undefined, {
                 month: "short",
                 year: "numeric",
               });
@@ -337,7 +356,7 @@ export default async function ReviewsPage() {
                 className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="mb-2 flex items-start gap-3">
-                  <InitialAvatar name={name} />
+                  <AuthorAvatar name={name} photoUrl={review.author_photo} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-medium text-slate-900">

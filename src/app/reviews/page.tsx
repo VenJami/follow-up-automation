@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type ReviewSource = "Google" | "Facebook" | "Internal" | "Video" | "Unknown";
+type ReviewSource = "Google" | "Facebook" | "Website" | "Unknown";
 
 interface Review {
   id: string;
@@ -19,6 +19,7 @@ interface Review {
   text: string;
   source: ReviewSource;
   date: string;
+  photoUrl?: string | null;
 }
 
 type ReviewRow = {
@@ -26,13 +27,10 @@ type ReviewRow = {
   rating: number;
   body: string;
   created_at: string;
-  review_invites?: {
-    first_name: string;
-    last_name: string;
-    consent: boolean;
-    status: "started" | "completed";
-    selected_platform: "google" | "facebook" | "internal" | "video" | null;
-  } | null;
+  author_name: string | null;
+  source: "google" | "facebook" | "website" | null;
+  author_photo: string | null;
+  review_date: string | null;
 };
 
 function StarRating({ value }: { value: number }) {
@@ -67,23 +65,52 @@ function InitialAvatar({ name }: { name: string }) {
   );
 }
 
-function toSource(platform: ReviewRow["review_invites"] extends infer T
-  ? T extends { selected_platform: infer P }
-    ? P
-    : never
-  : never): ReviewSource {
-  switch (platform) {
+function toSource(source: ReviewRow["source"]): ReviewSource {
+  switch (source) {
     case "google":
       return "Google";
     case "facebook":
       return "Facebook";
-    case "internal":
-      return "Internal";
-    case "video":
-      return "Video";
+    case "website":
+      return "Website";
     default:
       return "Unknown";
   }
+}
+
+function SourceBadge({ source }: { source: ReviewSource }) {
+  const className =
+    source === "Google"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+      : source === "Facebook"
+      ? "bg-blue-50 text-blue-700 ring-blue-200"
+      : source === "Website"
+      ? "bg-sky-50 text-sky-700 ring-sky-200"
+      : "bg-slate-50 text-slate-700 ring-slate-200";
+
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${className}`}
+    >
+      {source}
+    </span>
+  );
+}
+
+function AuthorAvatar({ name, photoUrl }: { name: string; photoUrl?: string | null }) {
+  if (photoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={photoUrl}
+        alt=""
+        className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
+  return <InitialAvatar name={name} />;
 }
 
 export default async function PublicReviewBoardPage() {
@@ -91,12 +118,10 @@ export default async function PublicReviewBoardPage() {
 
   const { data: reviews, error: reviewsError, count } = await supabase
     .from("reviews")
-    .select(
-      "id, rating, body, created_at, review_invites!inner(first_name,last_name,consent,status,selected_platform)",
-      { count: "exact" }
-    )
-    .eq("review_invites.consent", true)
-    .eq("review_invites.status", "completed")
+    .select("id, rating, body, created_at, author_name, author_photo, source, review_date", {
+      count: "exact",
+    })
+    .order("review_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(12);
 
@@ -106,12 +131,9 @@ export default async function PublicReviewBoardPage() {
 
   const rows: ReviewRow[] = (reviews ?? []) as unknown as ReviewRow[];
   const pageReviews: Review[] = rows.map((r) => {
-    const invite = r.review_invites ?? null;
-    const name = invite
-      ? `${invite.first_name} ${invite.last_name}`.trim() || "Anonymous"
-      : "Anonymous";
+    const name = (r.author_name ?? "").trim() || "Anonymous";
 
-    const date = new Date(r.created_at).toLocaleString(undefined, {
+    const date = new Date(r.review_date ?? r.created_at).toLocaleString(undefined, {
       month: "long",
       year: "numeric",
     });
@@ -121,8 +143,9 @@ export default async function PublicReviewBoardPage() {
       name,
       rating: Number(r.rating ?? 0),
       text: r.body,
-      source: toSource(invite?.selected_platform ?? null),
+      source: toSource(r.source),
       date,
+      photoUrl: r.author_photo,
     };
   });
 
@@ -205,7 +228,7 @@ export default async function PublicReviewBoardPage() {
                 className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="mb-2 flex items-start gap-3">
-                  <InitialAvatar name={review.name} />
+                  <AuthorAvatar name={review.name} photoUrl={review.photoUrl} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
@@ -213,9 +236,7 @@ export default async function PublicReviewBoardPage() {
                           {review.name}
                         </p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                        {review.source}
-                      </span>
+                      <SourceBadge source={review.source} />
                     </div>
                     <p className="mt-0.5 text-[11px] text-slate-500">{review.date}</p>
                     <div className="mt-1 flex items-center gap-1">

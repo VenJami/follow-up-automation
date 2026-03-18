@@ -56,11 +56,28 @@ export async function submitInternalReviewAction(input: {
 }) {
   const supabase = createSupabaseAdminClient();
 
+  const { data: invite, error: inviteError } = await supabase
+    .from("review_invites")
+    .select("first_name,last_name")
+    .eq("token", input.token)
+    .maybeSingle();
+
+  if (inviteError) {
+    throw new Error(`Failed to load invite for review: ${inviteError.message}`);
+  }
+
+  const authorName = invite
+    ? `${invite.first_name ?? ""} ${invite.last_name ?? ""}`.trim()
+    : "";
+
   const { error: insertError } = await supabase.from("reviews").insert({
     invite_token: input.token,
     rating: input.rating,
     body: input.body,
     image_url: input.imageUrl ?? null,
+    author_name: authorName || "Anonymous",
+    source: "website",
+    review_date: new Date().toISOString(),
   });
 
   if (insertError) {
