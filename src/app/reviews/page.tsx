@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = {
   title: "Client Review Board | Leslie Sullivan",
@@ -6,74 +7,33 @@ export const metadata: Metadata = {
     "Public showcase of real client reviews for Leslie Sullivan – Hometown Realty Group.",
 };
 
-type ReviewSource = "Google" | "Facebook" | "Website";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+type ReviewSource = "Google" | "Facebook" | "Internal" | "Video" | "Unknown";
 
 interface Review {
-  id: number;
+  id: string;
   name: string;
   rating: number;
   text: string;
   source: ReviewSource;
   date: string;
-  city?: string;
 }
 
-const mockReviews: Review[] = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    rating: 5,
-    text: "Leslie was amazing throughout the whole home buying process. She answered every question and made everything feel simple and calm.",
-    source: "Google",
-    date: "March 2026",
-    city: "The Woodlands, TX",
-  },
-  {
-    id: 2,
-    name: "Michael Chen",
-    rating: 5,
-    text: "Super responsive and always one step ahead. We felt completely taken care of from first showing to closing.",
-    source: "Facebook",
-    date: "February 2026",
-    city: "Spring, TX",
-  },
-  {
-    id: 3,
-    name: "Emily Davis",
-    rating: 5,
-    text: "Leslie turned a stressful sale into a smooth, organized experience. Her advice on pricing and staging was spot on.",
-    source: "Website",
-    date: "January 2026",
-    city: "Conroe, TX",
-  },
-  {
-    id: 4,
-    name: "Carlos Ramirez",
-    rating: 5,
-    text: "We found our dream home thanks to Leslie. She negotiated hard for us and kept us informed the entire time.",
-    source: "Google",
-    date: "December 2025",
-    city: "Houston, TX",
-  },
-  {
-    id: 5,
-    name: "Alicia Brown",
-    rating: 4.9,
-    text: "Her local knowledge and network made all the difference. Highly recommend working with Leslie and her team.",
-    source: "Google",
-    date: "November 2025",
-    city: "Magnolia, TX",
-  },
-  {
-    id: 6,
-    name: "James Lee",
-    rating: 5,
-    text: "As first-time buyers we had a lot of nerves. Leslie walked us through every step and never rushed us.",
-    source: "Facebook",
-    date: "October 2025",
-    city: "Tomball, TX",
-  },
-];
+type ReviewRow = {
+  id: string;
+  rating: number;
+  body: string;
+  created_at: string;
+  review_invites?: {
+    first_name: string;
+    last_name: string;
+    consent: boolean;
+    status: "started" | "completed";
+    selected_platform: "google" | "facebook" | "internal" | "video" | null;
+  } | null;
+};
 
 function StarRating({ value }: { value: number }) {
   const fullStars = Math.round(value);
@@ -107,9 +67,71 @@ function InitialAvatar({ name }: { name: string }) {
   );
 }
 
-export default function PublicReviewBoardPage() {
-  const overallRating = 4.9;
-  const totalReviews = 138;
+function toSource(platform: ReviewRow["review_invites"] extends infer T
+  ? T extends { selected_platform: infer P }
+    ? P
+    : never
+  : never): ReviewSource {
+  switch (platform) {
+    case "google":
+      return "Google";
+    case "facebook":
+      return "Facebook";
+    case "internal":
+      return "Internal";
+    case "video":
+      return "Video";
+    default:
+      return "Unknown";
+  }
+}
+
+export default async function PublicReviewBoardPage() {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: reviews, error: reviewsError, count } = await supabase
+    .from("reviews")
+    .select(
+      "id, rating, body, created_at, review_invites!inner(first_name,last_name,consent,status,selected_platform)",
+      { count: "exact" }
+    )
+    .eq("review_invites.consent", true)
+    .eq("review_invites.status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(12);
+
+  if (reviewsError) {
+    throw new Error(reviewsError.message);
+  }
+
+  const rows: ReviewRow[] = (reviews ?? []) as unknown as ReviewRow[];
+  const pageReviews: Review[] = rows.map((r) => {
+    const invite = r.review_invites ?? null;
+    const name = invite
+      ? `${invite.first_name} ${invite.last_name}`.trim() || "Anonymous"
+      : "Anonymous";
+
+    const date = new Date(r.created_at).toLocaleString(undefined, {
+      month: "long",
+      year: "numeric",
+    });
+
+    return {
+      id: r.id,
+      name,
+      rating: Number(r.rating ?? 0),
+      text: r.body,
+      source: toSource(invite?.selected_platform ?? null),
+      date,
+    };
+  });
+
+  const totalReviews = count ?? pageReviews.length;
+  const overallRating =
+    pageReviews.length > 0
+      ? pageReviews.reduce((sum, r) => sum + (r.rating ?? 0), 0) /
+        pageReviews.length
+      : 0;
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10">
@@ -130,7 +152,9 @@ export default function PublicReviewBoardPage() {
               </p>
               <div className="flex flex-wrap items-center gap-4 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-3xl font-semibold">{overallRating.toFixed(1)}</span>
+                  <span className="text-3xl font-semibold">
+                    {overallRating.toFixed(1)}
+                  </span>
                   <div>
                     <StarRating value={overallRating} />
                     <p className="text-xs text-sky-100/80">
@@ -169,14 +193,13 @@ export default function PublicReviewBoardPage() {
                 Featured client stories
               </h2>
               <p className="text-xs text-slate-600">
-                A small sample of recent reviews. In the live version, this page will stay
-                in sync with Google and Facebook.
+                A small sample of recent reviews pulled from the invite system.
               </p>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {mockReviews.map((review) => (
+            {pageReviews.map((review) => (
               <article
                 key={review.id}
                 className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
@@ -189,11 +212,6 @@ export default function PublicReviewBoardPage() {
                         <p className="truncate text-sm font-semibold text-slate-900">
                           {review.name}
                         </p>
-                        {review.city && (
-                          <p className="truncate text-[11px] text-slate-500">
-                            {review.city}
-                          </p>
-                        )}
                       </div>
                       <span className="shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700">
                         {review.source}
@@ -212,6 +230,12 @@ export default function PublicReviewBoardPage() {
               </article>
             ))}
           </div>
+
+          {pageReviews.length === 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600 shadow-sm">
+              No public reviews yet.
+            </div>
+          )}
         </section>
       </div>
     </main>

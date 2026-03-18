@@ -38,11 +38,40 @@ Displayed on `/dashboard` (only `status = "pending"` are loaded).
 >   add column if not exists last_reply_at timestamptz null;
 > ```
 
+#### `review_invites`
+Stores invite recipients + their platform choice and consent.
+
+- **Key columns (as used by app)**
+  - `token` (text, primary key)
+  - `first_name` (text)
+  - `last_name` (text)
+  - `email` (text)
+  - `phone` (text, nullable)
+  - `consent` (boolean)
+  - `status` (text): `started | completed`
+  - `selected_platform` (text, nullable): `google | facebook | internal | video`
+  - `created_at` / `updated_at` / `completed_at` (timestamps)
+
+#### `reviews`
+Stores the written review body + star rating.
+
+- **Key columns (as used by app)**
+  - `id` (uuid, primary key)
+  - `invite_token` (text FK → `review_invites.token`)
+  - `rating` (int 1–5)
+  - `body` (text)
+  - `image_url` (text, nullable)
+  - `created_at` (timestamp)
+
 ### RLS expectations (not defined in repo)
 The app assumes the logged-in user can:
 - Read pending tasks from `lead_followup_tasks`
 - Update `status` and `category` for tasks
 - Read `allowed_users` to validate their email
+
+For the review funnel, decide on one of these approaches:
+- Allow public/anon `select` for a **safe subset** of `reviews` (e.g. only joined invites with `consent = true` + `status = completed`), or
+- Keep `reviews` locked down and serve `/reviews` via a server-only admin client with strict filters.
 
 In practice, implement RLS so only allowlisted users can read/update tasks.
 

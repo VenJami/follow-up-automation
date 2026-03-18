@@ -31,6 +31,16 @@
 - Categories drive tabs: `urgent | lead | invoice | personal`.
 - Category normalization: if `category` is null, the UI treats it as `"lead"` for tab grouping.
 
+### Review funnel pattern
+- **Invites**: `review_invites` keyed by `token` (stores contact + consent + selected_platform + status).
+- **Reviews**: `reviews` rows reference `review_invites` via `invite_token` FK.
+- **Relationship shape gotcha**:
+  - `reviews -> review_invites` is many-to-one, so `review_invites(...)` comes back as a **single object** (or null), not an array.
+  - Treating it like an array causes UI to show “Anonymous”.
+- **Public board**:
+  - `/reviews` is a server component that queries Supabase on request (`dynamic = "force-dynamic"`, `revalidate = 0`)
+  - Filters to `review_invites.consent = true` and `review_invites.status = "completed"`
+
 ### UI interaction pattern
 - **Approve**:
   - Copies the suggested reply to clipboard

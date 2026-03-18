@@ -14,12 +14,13 @@ type ReviewRow = {
   rating: number;
   body: string;
   created_at: string;
-  // Supabase returns nested relations as arrays by default.
+  // `reviews.invite_token -> review_invites.token` is a many-to-one relation,
+  // so this comes back as a single object (or null).
   review_invites?: {
     first_name: string;
     last_name: string;
     selected_platform: ReviewPlatform | null;
-  }[] | null;
+  } | null;
 };
 
 function StarRating({ value }: { value: number }) {
@@ -314,7 +315,7 @@ export default async function ReviewsPage() {
           <h2 className="text-sm font-medium text-slate-700">Recent reviews</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {reviewRows.map((review) => {
-              const invite = review.review_invites?.[0] ?? null;
+              const invite = review.review_invites ?? null;
               const name = invite
                 ? `${invite.first_name} ${invite.last_name}`.trim()
                 : "Anonymous";
