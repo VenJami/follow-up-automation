@@ -12,12 +12,21 @@ type ReviewPlatform = "google" | "facebook" | "internal" | "video";
 type ReviewRow = {
   id: string;
   rating: number;
+  review_text?: string | null;
   body: string;
   created_at: string;
   author_name: string | null;
   source: "google" | "facebook" | "website" | null;
   author_photo: string | null;
   review_date: string | null;
+};
+
+type ReviewSummaryRow = {
+  created_at: string;
+  summary?: string | null;
+  summary_text?: string | null;
+  text?: string | null;
+  body?: string | null;
 };
 
 function StarRating({ value }: { value: number }) {
@@ -81,9 +90,59 @@ function sourceLabel(source: ReviewRow["source"]): string {
   }
 }
 
-export default async function ReviewsPage() {
+function SourceBadge({ source }: { source: ReviewRow["source"] }) {
+  const label = sourceLabel(source);
+  const className =
+    source === "google"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+      : source === "facebook"
+      ? "bg-blue-50 text-blue-700 ring-blue-200"
+      : source === "website"
+      ? "bg-slate-50 text-slate-700 ring-slate-200"
+      : "bg-slate-50 text-slate-700 ring-slate-200";
+
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${className}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+export default async function ReviewsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ source?: string }>;
+}) {
   await getUserOrRedirect();
   const supabase = await createSupabaseServerClient();
+
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const sourceFilter =
+    resolvedSearchParams.source === "google" ||
+    resolvedSearchParams.source === "website"
+      ? resolvedSearchParams.source
+      : "all";
+
+  const { data: summaries, error: summaryError } = await supabase
+    .from("review_summaries")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (summaryError) {
+    throw new Error(summaryError.message);
+  }
+
+  const latestSummary =
+    (summaries?.[0] as unknown as ReviewSummaryRow | undefined) ?? null;
+  const summaryText =
+    (latestSummary?.summary_text ??
+      latestSummary?.summary ??
+      latestSummary?.text ??
+      latestSummary?.body ??
+      "")?.trim() || null;
 
   const { data: invitePlatforms, error: invitePlatformsError } = await supabase
     .from("review_invites")
@@ -94,12 +153,19 @@ export default async function ReviewsPage() {
     throw new Error(invitePlatformsError.message);
   }
 
-  const { data: reviews, error: reviewsError } = await supabase
+  let reviewsQuery = supabase
     .from("reviews")
-    .select("id, rating, body, created_at, author_name, author_photo, source, review_date")
+    .select(
+      "id, rating, review_text, body, created_at, author_name, author_photo, source, review_date"
+    )
     .order("review_date", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .order("created_at", { ascending: false });
+
+  if (sourceFilter !== "all") {
+    reviewsQuery = reviewsQuery.eq("source", sourceFilter);
+  }
+
+  const { data: reviews, error: reviewsError } = await reviewsQuery.limit(50);
 
   if (reviewsError) {
     throw new Error(reviewsError.message);
@@ -175,6 +241,23 @@ export default async function ReviewsPage() {
             </button>
           </div>
         </div>
+
+        {/* AI Summary */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-sm font-semibold text-slate-900">
+                What Clients Are Saying
+              </h2>
+              <p className="text-xs text-slate-500">
+                Latest AI summary from your combined reviews.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            {summaryText ?? "No summary generated yet."}
+          </div>
+        </section>
 
         {/* Main stats grid (dashboard-style) */}
         <div className="grid gap-4 md:grid-cols-3">
@@ -337,11 +420,41 @@ export default async function ReviewsPage() {
 
         {/* Review list */}
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-slate-700">Recent reviews</h2>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <h2 className="text-sm font-medium text-slate-700">Recent reviews</h2>
+            <div className="flex items-center gap-2">
+              {(
+                [
+                  ["all", "All"],
+                  ["google", "Google"],
+                  ["website", "Website"],
+                ] as const
+              ).map(([key, label]) => {
+                const active = sourceFilter === key;
+                const href =
+                  key === "all" ? "/dashboard/reviews" : `/dashboard/reviews?source=${key}`;
+                return (
+                  <Link
+                    key={key}
+                    href={href}
+                    className={[
+                      "rounded-full px-3 py-1 text-xs font-semibold ring-1 transition-colors",
+                      active
+                        ? "bg-slate-900 text-white ring-slate-900"
+                        : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50",
+                    ].join(" ")}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             {reviewRows.map((review) => {
               const name = (review.author_name ?? "").trim() || "Anonymous";
-              const source = sourceLabel(review.source);
+              const source = review.source;
+              const text = (review.review_text ?? review.body ?? "").trim();
 
               const date = new Date(
                 review.review_date ?? review.created_at
@@ -362,9 +475,7 @@ export default async function ReviewsPage() {
                       <p className="truncate text-sm font-medium text-slate-900">
                         {name}
                       </p>
-                      <span className="shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                        {source}
-                      </span>
+                      <SourceBadge source={source} />
                     </div>
                     <p className="mt-0.5 text-[11px] text-slate-500">
                       {date}
@@ -378,7 +489,7 @@ export default async function ReviewsPage() {
                   </div>
                 </div>
                 <p className="mt-1 text-sm text-slate-700">
-                  {review.body}
+                  {text || "—"}
                 </p>
               </article>
               );
