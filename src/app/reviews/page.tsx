@@ -22,6 +22,14 @@ interface Review {
   photoUrl?: string | null;
 }
 
+type ReviewSummaryRow = {
+  created_at: string;
+  summary?: string | null;
+  summary_text?: string | null;
+  text?: string | null;
+  body?: string | null;
+};
+
 type ReviewRow = {
   id: string;
   rating: number;
@@ -116,6 +124,25 @@ function AuthorAvatar({ name, photoUrl }: { name: string; photoUrl?: string | nu
 export default async function PublicReviewBoardPage() {
   const supabase = await createSupabaseServerClient();
 
+  const { data: summaries, error: summaryError } = await supabase
+    .from("review_summaries")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (summaryError) {
+    throw new Error(summaryError.message);
+  }
+
+  const latestSummary =
+    (summaries?.[0] as unknown as ReviewSummaryRow | undefined) ?? null;
+  const summaryText =
+    (latestSummary?.summary_text ??
+      latestSummary?.summary ??
+      latestSummary?.text ??
+      latestSummary?.body ??
+      "")?.trim() || null;
+
   const { data: reviews, error: reviewsError, count } = await supabase
     .from("reviews")
     .select("id, rating, body, created_at, author_name, author_photo, source, review_date", {
@@ -205,6 +232,21 @@ export default async function PublicReviewBoardPage() {
                 <span className="font-semibold tracking-wide">281-639-8669</span>
               </p>
             </div>
+          </div>
+        </section>
+
+        {/* AI Summary */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-slate-900">
+              What Clients Are Saying
+            </h2>
+            <p className="text-xs text-slate-500">
+              Latest AI summary from your combined reviews.
+            </p>
+          </div>
+          <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            {summaryText ?? "No summary generated yet."}
           </div>
         </section>
 

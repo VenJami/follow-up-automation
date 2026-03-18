@@ -12,7 +12,6 @@ type ReviewPlatform = "google" | "facebook" | "internal" | "video";
 type ReviewRow = {
   id: string;
   rating: number;
-  review_text?: string | null;
   body: string;
   created_at: string;
   author_name: string | null;
@@ -155,9 +154,7 @@ export default async function ReviewsPage({
 
   let reviewsQuery = supabase
     .from("reviews")
-    .select(
-      "id, rating, review_text, body, created_at, author_name, author_photo, source, review_date"
-    )
+    .select("id, rating, body, created_at, author_name, author_photo, source, review_date")
     .order("review_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
 
@@ -454,7 +451,7 @@ export default async function ReviewsPage({
             {reviewRows.map((review) => {
               const name = (review.author_name ?? "").trim() || "Anonymous";
               const source = review.source;
-              const text = (review.review_text ?? review.body ?? "").trim();
+              const text = (review.body ?? "").trim();
 
               const date = new Date(
                 review.review_date ?? review.created_at
