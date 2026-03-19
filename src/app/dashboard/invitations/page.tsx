@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import InviteShareBar from "./InviteShareBar";
 
 export const metadata: Metadata = {
   title: "Invitations | Follow-Up Inbox",
@@ -33,6 +34,9 @@ const mockInvites = [
 ];
 
 export default function InvitationsPage() {
+  const publicInviteUrl =
+    "https://follow-up-automation.vercel.app/review-leslie-sullivan-hometown-realty-group";
+
   return (
     <main className="min-h-screen px-4 py-6">
       <div className="mx-auto max-w-6xl space-y-5">
@@ -177,23 +181,7 @@ export default function InvitationsPage() {
                 </Link>
               </div>
 
-              <div className="mt-4 space-y-2 text-xs">
-                <p className="font-medium text-slate-700">
-                  Share invite link with friends, family and clients
-                </p>
-                <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 sm:flex-row sm:items-center">
-                  <span className="flex-1 truncate text-[11px] text-slate-600">
-                    /review-leslie-sullivan-hometown-realty-group
-                  </span>
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex items-center justify-center rounded-md bg-white px-3 py-1 text-[11px] font-medium text-slate-700 shadow-sm hover:bg-slate-100 disabled:opacity-70"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
+              <InviteShareBar inviteUrl={publicInviteUrl} />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
