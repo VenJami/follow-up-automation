@@ -157,6 +157,21 @@ export default async function PublicReviewBoardPage() {
   }
 
   const rows: ReviewRow[] = (reviews ?? []) as unknown as ReviewRow[];
+  // Sort for the showcase:
+  // 1) Highest star rating first
+  // 2) Longest review body first (tie-breaker)
+  // 3) Newest review date/created_at first (stable ordering)
+  rows.sort((a, b) => {
+    const ratingDiff = Number(b.rating ?? 0) - Number(a.rating ?? 0);
+    if (ratingDiff !== 0) return ratingDiff;
+
+    const bodyLenDiff = (b.body ?? "").trim().length - (a.body ?? "").trim().length;
+    if (bodyLenDiff !== 0) return bodyLenDiff;
+
+    const aTs = new Date(a.review_date ?? a.created_at).getTime();
+    const bTs = new Date(b.review_date ?? b.created_at).getTime();
+    return bTs - aTs;
+  });
   const pageReviews: Review[] = rows.map((r) => {
     const name = (r.author_name ?? "").trim() || "Anonymous";
 
