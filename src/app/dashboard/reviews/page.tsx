@@ -170,36 +170,79 @@ export default async function ReviewsPage({
 
   const reviewRows: ReviewRow[] = (reviews ?? []) as unknown as ReviewRow[];
 
-  const totalInternalReviews = reviewRows.length;
-  const avgRating =
-    totalInternalReviews > 0
-      ? reviewRows.reduce((sum, r) => sum + (r.rating ?? 0), 0) /
-        totalInternalReviews
-      : 0;
-
   const completedInvites = (invitePlatforms ?? []).filter(
     (i) => i.status === "completed"
   ).length;
 
-  const platformCounts = (invitePlatforms ?? []).reduce<Record<string, number>>(
-    (acc, row) => {
-      const key = row.selected_platform ?? "unknown";
-      acc[key] = (acc[key] ?? 0) + 1;
+  // Platform stats + star distribution should come from the unified `reviews` table
+  // (so external Google reviews show up correctly).
+  const { data: reviewStats, error: reviewStatsError } = await supabase
+    .from("reviews")
+    .select("source,rating")
+    .limit(5000);
+
+  if (reviewStatsError) {
+    throw new Error(reviewStatsError.message);
+  }
+
+  const reviewStatRows = (reviewStats ?? []) as unknown as Array<{
+    source: ReviewRow["source"];
+    rating: number | null;
+  }>;
+
+  const totalInternalReviewsForStats = reviewStatRows.length;
+
+  const platformCounts = (["google", "website", "facebook"] as const).reduce(
+    (acc, key) => {
+      acc[key] = 0;
       return acc;
     },
-    {}
+    {} as Record<"google" | "website" | "facebook", number>
   );
+
+  const ratingSums = (["google", "website", "facebook"] as const).reduce(
+    (acc, key) => {
+      acc[key] = 0;
+      return acc;
+    },
+    {} as Record<"google" | "website" | "facebook", number>
+  );
+
+  const ratingCounts = (["google", "website", "facebook"] as const).reduce(
+    (acc, key) => {
+      acc[key] = 0;
+      return acc;
+    },
+    {} as Record<"google" | "website" | "facebook", number>
+  );
+
+  const starCounts = reviewStatRows.reduce<Record<number, number>>((acc, r) => {
+    if (r.rating == null) return acc;
+
+    const s = Math.max(1, Math.min(5, Math.round(r.rating)));
+    acc[s] = (acc[s] ?? 0) + 1;
+
+    if (r.source === "google" || r.source === "website" || r.source === "facebook") {
+      platformCounts[r.source] = (platformCounts[r.source] ?? 0) + 1;
+      ratingSums[r.source] = (ratingSums[r.source] ?? 0) + Number(r.rating);
+      ratingCounts[r.source] = (ratingCounts[r.source] ?? 0) + 1;
+    }
+
+    return acc;
+  }, {});
 
   const totalPlatformSelections = Object.values(platformCounts).reduce(
     (sum, v) => sum + v,
     0
   );
 
-  const starCounts = reviewRows.reduce<Record<number, number>>((acc, r) => {
-    const s = Math.max(1, Math.min(5, Math.round(r.rating ?? 0)));
-    acc[s] = (acc[s] ?? 0) + 1;
-    return acc;
-  }, {});
+  const avgRatingBySource = (["google", "website", "facebook"] as const).reduce(
+    (acc, key) => {
+      acc[key] = ratingCounts[key] > 0 ? ratingSums[key] / ratingCounts[key] : 0;
+      return acc;
+    },
+    {} as Record<"google" | "website" | "facebook", number>
+  );
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -262,7 +305,7 @@ export default async function ReviewsPage({
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-sm font-medium text-slate-700">Reviews Gained</h2>
-              <span className="text-[11px] text-slate-500">Internal</span>
+              <span className="text-[11px] text-slate-500">All Sources</span>
             </div>
             <div className="space-y-2 text-xs text-slate-600">
               <div className="flex items-center justify-between">
@@ -271,32 +314,17 @@ export default async function ReviewsPage({
               </div>
               <div className="flex items-center justify-between">
                 <span>Current total reviews</span>
-                <span className="font-semibold text-slate-900">{completedInvites}</span>
+                <span className="font-semibold text-slate-900">
+                  {totalInternalReviewsForStats}
+                </span>
               </div>
               <div className="flex items-center justify-between text-emerald-600">
                 <span>Reviews gained with automation</span>
-                <span className="font-semibold">+{completedInvites}</span>
+                <span className="font-semibold">+{totalInternalReviewsForStats}</span>
               </div>
               <div className="flex items-center justify-between text-emerald-600">
                 <span>Increase in reviews</span>
                 <span className="font-semibold">—</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Auto-posted / total reviews */}
-          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-sm font-medium text-slate-700">
-              Reviews Auto-Posted
-            </h2>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-slate-600">So far posted on social</p>
-                <p className="text-3xl font-semibold text-slate-900">0</p>
-                <p className="text-[11px] text-slate-500">All time</p>
-              </div>
-              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-700">
-                Logo
               </div>
             </div>
           </section>
@@ -310,8 +338,8 @@ export default async function ReviewsPage({
               {(
                 [
                   ["google", "Google"],
+                  ["website", "Website"],
                   ["facebook", "Facebook"],
-                  ["internal", "Internal"],
                 ] as const
               ).map(([key, label]) => {
                 const count = platformCounts[key] ?? 0;
@@ -319,12 +347,16 @@ export default async function ReviewsPage({
                   totalPlatformSelections > 0
                     ? Math.round((count / totalPlatformSelections) * 100)
                     : 0;
+                const avg =
+                  avgRatingBySource[key as "google" | "website" | "facebook"] ??
+                  0;
                 return (
                   <div key={key}>
                     <div className="mb-1 flex items-center justify-between">
                       <span className="font-medium">{label}</span>
                       <span className="text-[11px] text-slate-500">
-                        {count} selections
+                        {count} reviews
+                        {count > 0 ? ` • ${avg.toFixed(1)}★` : ""}
                       </span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
@@ -373,7 +405,7 @@ export default async function ReviewsPage({
               Star Distribution
             </h2>
             <p className="mb-2 text-xs text-slate-500">
-              Internal reviews: {totalInternalReviews}
+              All reviews: {totalInternalReviewsForStats}
             </p>
             <div className="space-y-2 text-xs text-slate-600">
               {[5, 4, 3, 2, 1].map((stars) => (
@@ -384,9 +416,11 @@ export default async function ReviewsPage({
                       className="h-full rounded-full bg-amber-400"
                       style={{
                         width:
-                          totalInternalReviews > 0
+                          totalInternalReviewsForStats > 0
                             ? `${Math.round(
-                                ((starCounts[stars] ?? 0) / totalInternalReviews) * 100
+                                ((starCounts[stars] ?? 0) /
+                                  totalInternalReviewsForStats) *
+                                  100
                               )}%`
                             : "0%",
                       }}
@@ -394,23 +428,6 @@ export default async function ReviewsPage({
                   </div>
                 </div>
               ))}
-            </div>
-          </section>
-
-          {/* Leads / views placeholder */}
-          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-sm font-medium text-slate-700">Leads</h2>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-slate-200 text-xs font-semibold text-slate-600">
-                0 Leads
-              </div>
-              <div className="space-y-1 text-xs text-slate-600">
-                <p>Have you set up your lead capture yet?</p>
-                <p className="text-[11px] text-slate-500">
-                  Coming soon: automatically track leads generated from your review
-                  profile.
-                </p>
-              </div>
             </div>
           </section>
         </div>
